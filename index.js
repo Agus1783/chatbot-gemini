@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import multer from "multer";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 const app = express();
 const upload = multer();
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
 const GEMINI_MODEL = "gemini-1.5-flash-latest"; // Use a valid and recent model name
 
 const __filename = fileURLToPath(import.meta.url);
