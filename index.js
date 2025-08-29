@@ -35,20 +35,6 @@ app.use(cors()); // Mengizinkan permintaan dari origin lain
 app.use(express.json()); // Mem-parsing body JSON dari request
 app.use(express.static(publicPath)); // Menyajikan file statis (HTML, CSS, JS) dari folder 'public'
 
-
-// function untuk penguraian respons API Gemini 
-const extractText = (resp) => {
-    try {
-        const text = 
-            resp?.response?.candidates?.[0]?.content?.parts?.[0]?.text ??
-            resp?.candidates?.[0]?.content?.parts?.[0]?.text ??
-            resp?.response?.candidates?.[0]?.content?.text;
-        return text ?? JSON.stringify(resp, null, 2);
-    } catch (err) {
-        console.error("Error extracting text: ", err);
-        return JSON.stringify(resp, null, 2)
-    }
-}
 // --- Rute Aplikasi ---
 
 // Rute utama untuk menyajikan halaman chat
@@ -82,14 +68,54 @@ app.post('/api/chat', async (req, res) => {
 app.post('/generate-text', async (req, res) => {
     try {
         const { prompt } = req.body;
+        if (!prompt) {
+            return res.status(400).json({ error: "Request body must include a 'prompt'." });
+        }
         const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
         const result = await model.generateContent(prompt);
-        res.json({ result: extractText(result) });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        const responseText = result.response.text();
+        res.json({ result: responseText });
+    } catch (error) {
+        console.error("\n===================================");
+        console.error("Error di endpoint /generate-text:");
+        console.error(error);
+        console.error("===================================\n");
+        res.status(500).json({ error: "Gagal mendapatkan respons dari AI. Periksa log server untuk detail." });
     }
 });
 
+// endpoint /generate-from-image
+app.post('/generate-from-image', upload.single('image'), async (req, res) => {
+    try {
+        const { prompt } = req.body;
+        const file = req.file;
 
+        if (!file) {
+            return res.status(400).json({ error: "No image file uploaded. Please upload an image." });
+        }
+        if (!prompt) {
+            return res.status(400).json({ error: "No prompt provided. Please provide a text prompt." });
+        }
+
+        const imagePart = {
+            inlineData: {
+                data: file.buffer.toString("base64"),
+                mimeType: file.mimetype,
+            },
+        };
+
+        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+        const result = await model.generateContent([prompt, imagePart]);
+        const responseText = result.response.text();
+
+        res.json({ result: responseText });
+    } catch (error) {
+        console.error("\n===================================");
+        console.error("Error di endpoint /generate-from-image:");
+        console.error(error);
+        console.error("===================================\n");
+        res.status(500).json({ error: "Gagal mendapatkan respons dari AI. Periksa log server untuk detail." });
+    }
+});
 
 app.listen(PORT, () => console.log(`Server berjalan di http://localhost:${PORT}`));
