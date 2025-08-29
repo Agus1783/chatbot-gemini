@@ -1,17 +1,20 @@
 import "dotenv/config";
 import express from "express";
 import multer from "multer";
-import fs from 'fs/promises';
 import { GoogleGenAI } from "@google/genai";
+import cors from 'cors';
+import fs from 'fs/promises';
 import { text } from "stream/consumers";
 import { MIMEType } from "util";
+import { error } from "console";
 
 const app = express();
 const upload = multer();
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const GEMINI_MODEL = "gemini-2.5-flash";
 
+app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
@@ -25,7 +28,6 @@ const extractText = (resp) => {
             resp?.response?.candidates?.[0]?.content?.text;
 
         return text ?? JSON.stringify(resp, null, 2);
-
     } catch (err) {
         console.error("Error extracting text", err);
         return JSON.stringify(resp, null, 2);
@@ -93,6 +95,25 @@ app.post('/generate-from-audio', upload.single('audio'), async (req, res) => {
                 { text: prompt || "Transkrip audio berikut" },
                 { inlineData: { mimeType: req.file.mimetype, data: audioBase64 } }
             ]
+        });
+        res.json({ result: extractText(resp) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 5. endpoint post api/chat
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { messages } = req.body;
+        if (!Array.isArray(messages)) throw new Error("Message must be an Array");
+        const contents = messages.map(msg => ({
+            role: msg.role,
+            parts: [{ text: msg.content }]
+        }));
+        const resp = await ai.models.generateContent({
+            model: GEMINI_MODEL,
+            contents
         });
         res.json({ result: extractText(resp) });
     } catch (err) {
