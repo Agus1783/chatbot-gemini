@@ -1,35 +1,35 @@
 import "dotenv/config";
 import express from "express";
 import multer from "multer";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import cors from 'cors';
-import fs from 'fs/promises';
-import { text } from "stream/consumers";
-import { MIMEType } from "util";
-import { error } from "console";
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const app = express();
 const upload = multer();
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const GEMINI_MODEL = "gemini-2.5-flash";
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const GEMINI_MODEL = "gemini-1.5-flash-latest"; // Use a valid and recent model name
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 app.use(cors());
 app.use(express.json());
+// Serve static files from the 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server berjalan di http://localhost:${PORT}`));
 
 const extractText = (resp) => {
     try {
-        const text =
-            resp?.response?.candidates?.[0]?.content?.parts?.[0]?.text ??
-            resp?.candidates?.[0]?.content?.parts?.[0]?.text ??
-            resp?.response?.candidates?.[0]?.content?.text;
-
-        return text ?? JSON.stringify(resp, null, 2);
+        // The new SDK has a helper function to get the text directly.
+        const text = resp.response.text();
+        return text;
     } catch (err) {
-        console.error("Error extracting text", err);
+        console.error("Error extracting text from AI response:", err);
         return JSON.stringify(resp, null, 2);
     }
 }
@@ -38,11 +38,13 @@ const extractText = (resp) => {
 app.post('/generate-text', async (req, res) => {
     try {
         const { prompt } = req.body;
-        const resp = await ai.models.generateContent({
-            model: GEMINI_MODEL,
-            contents: prompt
-        });
-        res.json({ result: extractText(resp) });
+        if (!prompt) {
+            return res.status(400).json({ error: "Prompt is required" });
+        }
+        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+        const result = await model.generateContent(prompt);
+
+        res.json({ result: extractText(result) });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -52,17 +54,22 @@ app.post('/generate-text', async (req, res) => {
 app.post('/generate-from-image', upload.single('image'), async (req, res) => {
     try {
         const { prompt } = req.body;
-        const imageBase64 = req.file.buffer.toString('base64');
-        const resp = await ai.models.generateContent({
-            model: GEMINI_MODEL,
-            contents: [
-                { text: prompt || "Jelaskan gambar berikut" },
-                { inlineData: { mimeType: req.file.mimetype, data: imageBase64 } }
-            ]
-        });
-        res.json({ result: extractText(resp) });
+        if (!req.file) {
+            return res.status(400).json({ error: "Image file is required" });
+        }
+        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+
+        const imagePart = {
+            inlineData: {
+                mimeType: req.file.mimetype,
+                data: req.file.buffer.toString('base64'),
+            },
+        };
+
+        const result = await model.generateContent([prompt || "Jelaskan gambar berikut", imagePart]);
+        res.json({ result: extractText(result) });
     } catch (err) {
-        res.status(500).json({ error: err.message })
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -70,15 +77,21 @@ app.post('/generate-from-image', upload.single('image'), async (req, res) => {
 app.post('/generate-from-document', upload.single('document'), async (req, res) => {
     try {
         const { prompt } = req.body;
-        const docBase64 = req.file.buffer.toString('base64');
-        const resp = await ai.models.generateContent({
-            model: GEMINI_MODEL,
-            contents: [
-                { text: prompt || "Jelaskan document berikut" },
-                { inlineData: { mimeType: req.file.mimetype, data: docBase64 } }
-            ]
-        });
-        res.json({ result: extractText(resp) });
+        if (!req.file) {
+            return res.status(400).json({ error: "Document file is required" });
+        }
+        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+
+        const filePart = {
+            inlineData: {
+                mimeType: req.file.mimetype,
+                data: req.file.buffer.toString('base64'),
+            },
+        };
+
+        const result = await model.generateContent([prompt || "Jelaskan document berikut", filePart]);
+
+        res.json({ result: extractText(result) });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -88,15 +101,21 @@ app.post('/generate-from-document', upload.single('document'), async (req, res) 
 app.post('/generate-from-audio', upload.single('audio'), async (req, res) => {
     try {
         const { prompt } = req.body;
-        const audioBase64 = req.file.buffer.toString('base64');
-        const resp = await ai.models.generateContent({
-            model: GEMINI_MODEL,
-            contents: [
-                { text: prompt || "Transkrip audio berikut" },
-                { inlineData: { mimeType: req.file.mimetype, data: audioBase64 } }
-            ]
-        });
-        res.json({ result: extractText(resp) });
+        if (!req.file) {
+            return res.status(400).json({ error: "Audio file is required" });
+        }
+        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+
+        const audioPart = {
+            inlineData: {
+                mimeType: req.file.mimetype,
+                data: req.file.buffer.toString('base64'),
+            },
+        };
+
+        const result = await model.generateContent([prompt || "Transkrip audio berikut", audioPart]);
+
+        res.json({ result: extractText(result) });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -106,16 +125,18 @@ app.post('/generate-from-audio', upload.single('audio'), async (req, res) => {
 app.post('/api/chat', async (req, res) => {
     try {
         const { messages } = req.body;
-        if (!Array.isArray(messages)) throw new Error("Message must be an Array");
+        if (!Array.isArray(messages) || messages.length === 0) {
+            return res.status(400).json({ error: "Messages must be a non-empty array" });
+        }
         const contents = messages.map(msg => ({
             role: msg.role,
             parts: [{ text: msg.content }]
         }));
-        const resp = await ai.models.generateContent({
-            model: GEMINI_MODEL,
-            contents
-        });
-        res.json({ result: extractText(resp) });
+
+        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+        const result = await model.generateContent({ contents });
+
+        res.json({ result: extractText(result) });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
