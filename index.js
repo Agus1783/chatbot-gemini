@@ -2,12 +2,17 @@ import "dotenv/config";
 import express from "express";
 import cors from 'cors';
 import path from 'path';
+import multer from 'multer';
 import { fileURLToPath } from 'url';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+
 
 // --- Konfigurasi Server ---
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// -- Konfigurasi upload
+const upload = multer();
 
 // Dapatkan path direktori saat ini (penting untuk ES Modules)
 const __filename = fileURLToPath(import.meta.url);
@@ -30,6 +35,20 @@ app.use(cors()); // Mengizinkan permintaan dari origin lain
 app.use(express.json()); // Mem-parsing body JSON dari request
 app.use(express.static(publicPath)); // Menyajikan file statis (HTML, CSS, JS) dari folder 'public'
 
+
+// function untuk penguraian respons API Gemini 
+const extractText = (resp) => {
+    try {
+        const text = 
+            resp?.response?.candidates?.[0]?.content?.parts?.[0]?.text ??
+            resp?.candidates?.[0]?.content?.parts?.[0]?.text ??
+            resp?.response?.candidates?.[0]?.content?.text;
+        return text ?? JSON.stringify(resp, null, 2);
+    } catch (err) {
+        console.error("Error extracting text: ", err);
+        return JSON.stringify(resp, null, 2)
+    }
+}
 // --- Rute Aplikasi ---
 
 // Rute utama untuk menyajikan halaman chat
@@ -58,5 +77,19 @@ app.post('/api/chat', async (req, res) => {
         res.status(500).json({ error: "Gagal mendapatkan respons dari AI. Periksa log server untuk detail." });
     }
 });
+
+// endpoint /generate-text
+app.post('/generate-text', async (req, res) => {
+    try {
+        const { prompt } = req.body;
+        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+        const result = await model.generateContent(prompt);
+        res.json({ result: extractText(result) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
 
 app.listen(PORT, () => console.log(`Server berjalan di http://localhost:${PORT}`));
