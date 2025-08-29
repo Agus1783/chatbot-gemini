@@ -62,8 +62,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) {
                 // Handle HTTP errors like 404, 500
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to get response from server.');
+                let errorMessage = `Failed to get response. Status: ${response.status}`;
+                try {
+                    // Try to parse a JSON error response from the server for a better message.
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || JSON.stringify(errorData);
+                } catch (e) {
+                    // If the error response isn't JSON, we'll just use the status.
+                    console.warn("Could not parse server error response as JSON.");
+                }
+                throw new Error(errorMessage);
             }
 
             const data = await response.json();
