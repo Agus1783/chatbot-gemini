@@ -3,77 +3,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInput = document.getElementById('user-input');
     const chatBox = document.getElementById('chat-box');
 
+    // New elements for file handling
+    const fileInput = document.getElementById('file-input');
+    const filePreview = document.getElementById('file-preview');
+    const fileName = document.getElementById('file-name');
+    const removeFileBtn = document.getElementById('remove-file-btn');
+
     // Use a relative URL, as the frontend is served from the same origin as the backend.
     const API_URL = '/api/chat';// Ganti event listener yang ada di public/script.js dengan ini
-    
-    chatForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-    
-        const userMessage = userInput.value.trim();
-        if (!userMessage) {
-            return; // Jangan kirim pesan kosong
-        }
-    
-        // TODO: Tambahkan elemen input file di HTML Anda jika ingin mengunggah file
-        // const fileInput = document.getElementById('file-input');
-        // const file = fileInput.files[0];
-    
-        addMessageToChatBox('user', userMessage);
-        userInput.value = '';
-    
-        const thinkingMessageId = `thinking-${Date.now()}`;
-        const thinkingMessageElement = addMessageToChatBox('bot', 'Thinking...', thinkingMessageId);
-    
-        // Gunakan FormData untuk mengirim teks dan (opsional) file
-        const formData = new FormData();
-        formData.append('prompt', userMessage);
-        // if (file) {
-        //     formData.append('file', file);
-        // }
-    
-        try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                // PENTING: Jangan set header 'Content-Type' secara manual.
-                // Browser akan mengaturnya secara otomatis untuk FormData,
-                // termasuk 'boundary' yang diperlukan.
-                body: formData,
-            });
-    
-            if (!response.ok) {
-                let errorMessage = `Failed to get response. Status: ${response.status}`;
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.error || JSON.stringify(errorData);
-                } catch (e) {
-                    console.warn("Could not parse server error response as JSON.");
-                }
-                throw new Error(errorMessage);
-            }
-    
-            const data = await response.json();
-            const aiResponse = data.result;
-    
-            const botMessageContent = thinkingMessageElement.querySelector('p');
-            botMessageContent.textContent = aiResponse || 'Sorry, no response received.';
-    
-        } catch (error) {
-            console.error('Chat Error:', error);
-            const botMessageContent = thinkingMessageElement.querySelector('p');
-            botMessageContent.textContent = error.message || 'An unexpected error occurred.';
-        } finally {
-            thinkingMessageElement.removeAttribute('id');
-        }
-    });
-    
 
-    /**
-     * Appends a message to the chat box and scrolls to the bottom.
-     * @param {string} sender - The sender of the message ('user' or 'bot').
-     * @param {string} message - The message content.
-     * @param {string|null} elementId - An optional ID for the message element.
-     * @returns {HTMLElement} The created message element.
-     */
     const addMessageToChatBox = (sender, message, elementId = null) => {
         const messageElement = document.createElement('div');
         const contentElement = document.createElement('p');
@@ -92,61 +30,87 @@ document.addEventListener('DOMContentLoaded', () => {
         return messageElement;
     };
 
+    // --- Initial Welcome Message ---
+    addMessageToChatBox('bot', 'Hello Everyone, Welcome to My ChatBot. Can I Help You?');
+
+    // --- File Handling Logic ---
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (file) {
+            fileName.textContent = file.name;
+            filePreview.style.display = 'flex';
+        }
+    });
+
+    removeFileBtn.addEventListener('click', () => {
+        fileInput.value = ''; // Clear the file input's value
+        filePreview.style.display = 'none'; // Hide the preview
+    });
+
+
+
+    // --- Form Submission Logic ---
     chatForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const userMessage = userInput.value.trim();
-        if (!userMessage) {
-            return; // Don't send empty messages
+        let userMessage = userInput.value.trim();
+        const file = fileInput.files[0];
+
+        // Guard against empty submission (no text and no file)
+        if (!userMessage && !file) {
+            return;
         }
 
-        // 1. Add user's message to the chat box
-        addMessageToChatBox('user', userMessage);
-        userInput.value = ''; // Clear the input field
+        // Determine the prompt to send to the API. Use a default if only a file is present.
+        const promptForApi = (file && !userMessage) ? "Jelaskan informasi yang ada pada file ini" : userMessage;
 
-        // 2. Show a temporary "Thinking..." bot message
+        // Add the user's message to the chat box, including a file indicator if present.
+        // This logic ensures the default prompt is NOT shown in the UI.
+        let displayMessage = userMessage;
+        if (file) {
+            // If there's a user message, append the file name. Otherwise, just show the file name.
+            displayMessage = userMessage ? `${userMessage} [File: ${file.name}]` : `[File: ${file.name}]`;
+        }
+        addMessageToChatBox('user', displayMessage);
+
+        // Clear inputs for the next message
+        userInput.value = '';
+        removeFileBtn.click(); // Programmatically click the remove button to reset the file input UI
+
         const thinkingMessageId = `thinking-${Date.now()}`;
         const thinkingMessageElement = addMessageToChatBox('bot', 'Thinking...', thinkingMessageId);
 
+        // Use FormData to send both text and file data
+        const formData = new FormData();
+        formData.append('prompt', promptForApi);
+        if (file) {
+            formData.append('file', file);
+        }
+
         try {
-            // 3. Send the user's message to the backend
             const response = await fetch(API_URL, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    // The backend expects an array of messages for context
-                    messages: [{ role: 'user', content: userMessage }],
-                }),
+                // Let the browser set the 'Content-Type' header for FormData
+                body: formData,
             });
 
             if (!response.ok) {
-                // Handle HTTP errors like 404, 500
                 let errorMessage = `Failed to get response. Status: ${response.status}`;
                 try {
-                    // Try to parse a JSON error response from the server for a better message.
                     const errorData = await response.json();
                     errorMessage = errorData.error || JSON.stringify(errorData);
                 } catch (e) {
-                    // If the error response isn't JSON, we'll just use the status.
                     console.warn("Could not parse server error response as JSON.");
                 }
                 throw new Error(errorMessage);
             }
 
             const data = await response.json();
-            const aiResponse = data.result;
-
-            // 4. Replace "Thinking..." with the AI's reply
-            const botMessageContent = thinkingMessageElement.querySelector('p');
-            botMessageContent.textContent = aiResponse || 'Sorry, no response received.';
+            thinkingMessageElement.querySelector('p').textContent = data.result || 'Sorry, no response received.';
 
         } catch (error) {
             console.error('Chat Error:', error);
-            // 5. Handle fetch errors or other exceptions
-            const botMessageContent = thinkingMessageElement.querySelector('p');
-            botMessageContent.textContent = error.message || 'An unexpected error occurred.';
+            thinkingMessageElement.querySelector('p').textContent = error.message || 'An unexpected error occurred.';
         } finally {
             thinkingMessageElement.removeAttribute('id');
         }
