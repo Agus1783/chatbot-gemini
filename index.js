@@ -43,75 +43,43 @@ app.get('/', (req, res) => {
 });
 
 // Rute API untuk Chat
-app.post('/api/chat', async (req, res) => {
+// Endpoint ini sekarang menangani:
+// 1. Chat teks-saja (jika tidak ada file yang diunggah)
+// 2. Chat dengan file (gambar, dokumen, audio, dll.)
+app.post('/api/chat', upload.single('file'), async (req, res) => {
     try {
-        const { messages } = req.body;
-        if (!Array.isArray(messages) || messages.length === 0) {
-            return res.status(400).json({ error: "Request body must include a non-empty 'messages' array." });
-        }
-
-        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-        const lastUserMessage = messages[messages.length - 1].content;
-        const result = await model.generateContent(lastUserMessage);
-
-        res.json({ result: result.response.text() });
-    } catch (error) {
-        console.error("\n===================================");
-        console.error("Error di endpoint /api/chat:");
-        console.error(error); // Log seluruh objek error untuk debugging
-        console.error("===================================\n");
-        res.status(500).json({ error: "Gagal mendapatkan respons dari AI. Periksa log server untuk detail." });
-    }
-});
-
-// endpoint /generate-text
-app.post('/generate-text', async (req, res) => {
-    try {
-        const { prompt } = req.body;
-        if (!prompt) {
-            return res.status(400).json({ error: "Request body must include a 'prompt'." });
-        }
-        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
-        res.json({ result: responseText });
-    } catch (error) {
-        console.error("\n===================================");
-        console.error("Error di endpoint /generate-text:");
-        console.error(error);
-        console.error("===================================\n");
-        res.status(500).json({ error: "Gagal mendapatkan respons dari AI. Periksa log server untuk detail." });
-    }
-});
-
-// endpoint /generate-from-image
-app.post('/generate-from-image', upload.single('image'), async (req, res) => {
-    try {
+        // 'prompt' sekarang datang dari form-data, bukan JSON body
         const { prompt } = req.body;
         const file = req.file;
 
-        if (!file) {
-            return res.status(400).json({ error: "No image file uploaded. Please upload an image." });
-        }
         if (!prompt) {
-            return res.status(400).json({ error: "No prompt provided. Please provide a text prompt." });
+            return res.status(400).json({ error: "Request body must include a 'prompt'." });
         }
-
-        const imagePart = {
-            inlineData: {
-                data: file.buffer.toString("base64"),
-                mimeType: file.mimetype,
-            },
-        };
 
         const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-        const result = await model.generateContent([prompt, imagePart]);
-        const responseText = result.response.text();
+        let result;
+        let responseText;
 
+        if (file) {
+            // Kasus 2: Permintaan dengan file (multimodal)
+            const filePart = {
+                inlineData: {
+                    data: file.buffer.toString("base64"),
+                    mimeType: file.mimetype,
+                },
+            };
+            result = await model.generateContent([prompt, filePart]);
+        } else {
+            // Kasus 1: Permintaan teks-saja
+            result = await model.generateContent(prompt);
+        }
+
+        responseText = result.response.text();
         res.json({ result: responseText });
+
     } catch (error) {
         console.error("\n===================================");
-        console.error("Error di endpoint /generate-from-image:");
+        console.error("Error di endpoint /api/chat:");
         console.error(error);
         console.error("===================================\n");
         res.status(500).json({ error: "Gagal mendapatkan respons dari AI. Periksa log server untuk detail." });

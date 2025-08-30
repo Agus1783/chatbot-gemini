@@ -4,7 +4,68 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatBox = document.getElementById('chat-box');
 
     // Use a relative URL, as the frontend is served from the same origin as the backend.
-    const API_URL = '/api/chat';
+    const API_URL = '/api/chat';// Ganti event listener yang ada di public/script.js dengan ini
+    
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+    
+        const userMessage = userInput.value.trim();
+        if (!userMessage) {
+            return; // Jangan kirim pesan kosong
+        }
+    
+        // TODO: Tambahkan elemen input file di HTML Anda jika ingin mengunggah file
+        // const fileInput = document.getElementById('file-input');
+        // const file = fileInput.files[0];
+    
+        addMessageToChatBox('user', userMessage);
+        userInput.value = '';
+    
+        const thinkingMessageId = `thinking-${Date.now()}`;
+        const thinkingMessageElement = addMessageToChatBox('bot', 'Thinking...', thinkingMessageId);
+    
+        // Gunakan FormData untuk mengirim teks dan (opsional) file
+        const formData = new FormData();
+        formData.append('prompt', userMessage);
+        // if (file) {
+        //     formData.append('file', file);
+        // }
+    
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                // PENTING: Jangan set header 'Content-Type' secara manual.
+                // Browser akan mengaturnya secara otomatis untuk FormData,
+                // termasuk 'boundary' yang diperlukan.
+                body: formData,
+            });
+    
+            if (!response.ok) {
+                let errorMessage = `Failed to get response. Status: ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || JSON.stringify(errorData);
+                } catch (e) {
+                    console.warn("Could not parse server error response as JSON.");
+                }
+                throw new Error(errorMessage);
+            }
+    
+            const data = await response.json();
+            const aiResponse = data.result;
+    
+            const botMessageContent = thinkingMessageElement.querySelector('p');
+            botMessageContent.textContent = aiResponse || 'Sorry, no response received.';
+    
+        } catch (error) {
+            console.error('Chat Error:', error);
+            const botMessageContent = thinkingMessageElement.querySelector('p');
+            botMessageContent.textContent = error.message || 'An unexpected error occurred.';
+        } finally {
+            thinkingMessageElement.removeAttribute('id');
+        }
+    });
+    
 
     /**
      * Appends a message to the chat box and scrolls to the bottom.
