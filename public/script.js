@@ -8,9 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const filePreview = document.getElementById('file-preview');
     const fileName = document.getElementById('file-name');
     const removeFileBtn = document.getElementById('remove-file-btn');
+    const themeToggle = document.getElementById('theme-toggle');
 
     // Use a relative URL, as the frontend is served from the same origin as the backend.
-    const API_URL = '/api/chat';// Ganti event listener yang ada di public/script.js dengan ini
+    const API_URL = '/api/chat';
 
     const addMessageToChatBox = (sender, message, elementId = null) => {
         const messageElement = document.createElement('div');
@@ -31,7 +32,31 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Initial Welcome Message ---
-    addMessageToChatBox('bot', 'Hello Everyone, Welcome to My ChatBot. Can I Help You?');
+    addMessageToChatBox('bot', 'Hello Everyone, Welcome to My ChatBot. Can I help you?');
+
+    // --- Theme Handling Logic ---
+    const setTheme = (theme) => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+    };
+
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        setTheme(newTheme);
+    });
+
+    // Apply saved theme or system preference on load
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    if (savedTheme) {
+        setTheme(savedTheme);
+    } else if (prefersDark) {
+        setTheme('dark');
+    } else {
+        setTheme('light'); // Default
+    }
 
     // --- File Handling Logic ---
     fileInput.addEventListener('change', () => {

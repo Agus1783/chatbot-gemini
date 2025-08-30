@@ -20,7 +20,6 @@ const __dirname = path.dirname(__filename);
 const publicPath = path.join(__dirname, 'public');
 
 // --- Konfigurasi Gemini AI ---
-// PENTING: Pastikan file .env ada dan berisi GEMINI_API_KEY
 if (!process.env.GEMINI_API_KEY) {
     console.error("\nFATAL ERROR: Variabel GEMINI_API_KEY tidak ditemukan.");
     console.error("Pastikan Anda telah membuat file .env di root direktori proyek.");
@@ -43,12 +42,12 @@ app.get('/', (req, res) => {
 });
 
 // Rute API untuk Chat
-// Endpoint ini sekarang menangani:
+// Endpoint untuk menangani :
 // 1. Chat teks-saja (jika tidak ada file yang diunggah)
 // 2. Chat dengan file (gambar, dokumen, audio, dll.)
 app.post('/api/chat', upload.single('file'), async (req, res) => {
     try {
-        // 'prompt' sekarang datang dari form-data, bukan JSON body
+        // 'prompt' datang dari form-data, bukan JSON body
         const { prompt } = req.body;
         const file = req.file;
 
@@ -86,4 +85,8 @@ app.post('/api/chat', upload.single('file'), async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`Server berjalan di http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server berjalan dan dapat diakses di:`);
+    console.log(`- Local:   http://localhost:${PORT}`);
+    console.log(`- Network: http://192.168.0.100:${PORT}`);
+});

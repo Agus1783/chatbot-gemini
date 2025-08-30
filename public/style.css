@@ -1,33 +1,74 @@
+/* Define color variables for theming */
+:root {
+    --bg-color: #f4f7f6;
+    --app-bg: #fff;
+    --header-border: #eee;
+    --text-color: #333;
+    --header-text: #444;
+    --user-bubble-bg: #007bff;
+    --user-bubble-text: #fff;
+    --bot-bubble-bg: #e9ecef;
+    --input-border: #ccc;
+    --input-focus-border: #007bff;
+    --button-bg: #007bff;
+    --button-hover-bg: #0056b3;
+    --icon-stroke: #555;
+    --upload-hover-bg: #f0f0f0;
+}
+
+[data-theme="dark"] {
+    --bg-color: #121212;
+    --app-bg: #1e1e1e;
+    --header-border: #333;
+    --text-color: #e0e0e0;
+    --header-text: #f1f1f1;
+    --user-bubble-bg: #375a7f;
+    --bot-bubble-bg: #333;
+    --input-border: #555;
+    --input-focus-border: #375a7f;
+    --button-bg: #375a7f;
+    --button-hover-bg: #2a4662;
+    --icon-stroke: #aaa;
+    --upload-hover-bg: #444;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background-color: #f4f7f6;
+    background-color: var(--bg-color);
     margin: 0;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
-    color: #333;
+    color: var(--text-color);
+    transition: background-color 0.3s, color 0.3s;
 }
 
 #app-container {
     width: 100%;
     max-width: 600px;
     height: 80vh;
-    background-color: #fff;
+    background-color: var(--app-bg);
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Shadow is less noticeable in dark mode, which is fine */
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    transition: background-color 0.3s;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--header-border);
 }
 
 h1 {
-    text-align: center;
-    padding: 20px;
-    margin: 0;
-    border-bottom: 1px solid #eee;
+    margin: 0; /* Reset margin */
     font-size: 1.5em;
-    color: #444;
+    color: var(--header-text);
 }
 
 #chat-box {
@@ -51,22 +92,22 @@ h1 {
 }
 
 .user-message {
-    background-color: #007bff;
-    color: white;
+    background-color: var(--user-bubble-bg);
+    color: var(--user-bubble-text);
     align-self: flex-end;
     border-bottom-right-radius: 4px;
 }
 
 .bot-message {
-    background-color: #e9ecef;
-    color: #333;
+    background-color: var(--bot-bubble-bg);
+    color: var(--text-color);
     align-self: flex-start;
     border-bottom-left-radius: 4px;
 }
 
 #chat-form {
     padding: 15px 20px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--header-border);
 }
 
 /* New container for the whole input area */
@@ -95,11 +136,11 @@ h1 {
 }
 
 #upload-label:hover {
-    background-color: #f0f0f0;
+    background-color: var(--upload-hover-bg);
 }
 
 #upload-label svg {
-    stroke: #555;
+    stroke: var(--icon-stroke);
 }
 
 /* The file preview area */
@@ -107,7 +148,7 @@ h1 {
     display: flex; /* Will be set to flex by JS */
     justify-content: space-between;
     align-items: center;
-    background-color: #e9ecef;
+    background-color: var(--bot-bubble-bg);
     padding: 8px 12px;
     border-radius: 12px;
     font-size: 0.9em;
@@ -122,7 +163,7 @@ h1 {
 
 #user-input {
     flex-grow: 1;
-    border: 1px solid #ccc;
+    border: 1px solid var(--input-border);
     border-radius: 20px;
     padding: 10px 15px;
     font-size: 1em;
@@ -131,12 +172,12 @@ h1 {
 
 #user-input:focus {
     outline: none;
-    border-color: #007bff;
+    border-color: var(--input-focus-border);
 }
 
 #chat-form button {
-    background-color: #007bff;
-    color: white;
+    background-color: var(--button-bg);
+    color: var(--user-bubble-text);
     border: none;
     border-radius: 20px;
     padding: 10px 20px;
@@ -146,7 +187,7 @@ h1 {
 }
 
 #chat-form button:hover {
-    background-color: #0056b3;
+    background-color: var(--button-hover-bg);
 }
 
 #remove-file-btn {
@@ -156,7 +197,31 @@ h1 {
     font-size: 1.4em;
     line-height: 1;
     padding: 0 0 0 10px;
-    color: #555;
+    color: var(--icon-stroke);
+}
+
+/* Theme Toggle Button */
+#theme-toggle {
+    background: none;
+    border: 1px solid var(--input-border);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+#theme-toggle:hover {
+    background-color: var(--upload-hover-bg);
+}
+
+#theme-toggle::before {
+    content: '🌙'; /* Default: Moon for switching to dark */
+    font-size: 18px;
 }
 
 /* Styles for desktop view (full screen) */
@@ -167,4 +232,8 @@ h1 {
         border-radius: 0;
         box-shadow: none;
     }
+}
+
+[data-theme="dark"] #theme-toggle::before {
+    content: '☀️'; /* Sun for switching to light */
 }
